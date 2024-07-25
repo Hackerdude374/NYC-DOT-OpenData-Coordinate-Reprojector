@@ -66,6 +66,16 @@ app.post('/upload', upload.single('file'), (req, res) => {
                                 console.error(`File delete error: ${err}`);
                             }
                         });
+
+                        // Clear uploads folder
+                        fs.readdir('uploads', (err, files) => {
+                            if (err) console.error(`Error reading uploads folder: ${err}`);
+                            files.forEach(file => {
+                                fs.unlink(path.join('uploads', file), err => {
+                                    if (err) console.error(`Error deleting file: ${err}`);
+                                });
+                            });
+                        });
                     }
                 });
             });
