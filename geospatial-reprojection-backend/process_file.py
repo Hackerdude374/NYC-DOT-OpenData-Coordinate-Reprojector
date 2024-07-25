@@ -1,4 +1,5 @@
 import sys
+import os  # Added import for os
 import pandas as pd
 import geopandas as gpd
 from shapely import wkt
@@ -78,7 +79,7 @@ def reproject_coordinates(file_path):
         gdf.drop(columns=['geometry', 'updated_geometry'], inplace=True)
 
         # Save the updated dataframe to a new file with the same format as the input file
-        with NamedTemporaryFile(delete=False, suffix=output_suffix) as temp_file:
+        with NamedTemporaryFile(delete=False, suffix=output_suffix, dir=os.path.dirname(file_path)) as temp_file:
             if output_suffix == '.xlsx':
                 gdf.to_excel(temp_file.name, index=False)
             elif output_suffix == '.csv':
@@ -86,6 +87,7 @@ def reproject_coordinates(file_path):
             elif output_suffix == '.geojson':
                 gdf.to_file(temp_file.name, driver='GeoJSON')
             output_file = temp_file.name
+            print(f"Output file: {output_file}")
             return output_file
     except Exception as e:
         print(f"Error: {e}")

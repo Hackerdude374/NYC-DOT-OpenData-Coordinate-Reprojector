@@ -4,6 +4,9 @@ import nycDotLogo from './assets/nyc_dot_logo.png';
 
 const App: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadSuccess, setUploadSuccess] = useState<boolean>(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -18,23 +21,46 @@ const App: React.FC = () => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch('http://localhost:3000/upload', {
-      method: 'POST',
-      body: formData,
-    });
+    setUploading(true);
+    setUploadProgress(0);
+    setUploadSuccess(false);
 
-    if (response.ok) {
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'reprojected_data.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } else {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'http://localhost:3000/upload', true);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = (event.loaded / event.total) * 100;
+        setUploadProgress(percentComplete);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const blob = new Blob([xhr.response], { type: 'application/octet-stream' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name.replace(/(\.[\w\d_-]+)$/i, '_reprojected$1');
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setUploadSuccess(true);
+      } else {
+        alert('Error processing file');
+      }
+
+      setUploading(false);
+      setUploadProgress(100);
+    };
+
+    xhr.onerror = () => {
       alert('Error processing file');
-    }
+      setUploading(false);
+    };
+
+    xhr.responseType = 'blob';
+    xhr.send(formData);
   };
 
   return (
@@ -43,7 +69,7 @@ const App: React.FC = () => {
         <img src={nycDotLogo} alt="NYC DOT Logo" className="logo" />
         <h1>Geospatial Reprojection</h1>
       </nav>
-      <main>
+      <main className="main">
         <section className="instructions">
           <h2>Instructions</h2>
           <ol>
@@ -57,6 +83,16 @@ const App: React.FC = () => {
           <input type="file" onChange={handleFileChange} accept=".xlsx,.doc,.geojson,.csv" className="file-input" />
           <button type="submit" className="upload-button">Upload</button>
         </form>
+        {uploading && (
+          <div className="progress-bar">
+            <div className="progress" style={{ width: `${uploadProgress}%` }}></div>
+          </div>
+        )}
+        {uploadSuccess && (
+          <div className="checkmark">
+            ✓
+          </div>
+        )}
       </main>
     </div>
   );

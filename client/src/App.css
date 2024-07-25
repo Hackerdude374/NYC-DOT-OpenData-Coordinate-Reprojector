@@ -72,3 +72,23 @@
 .upload-button:hover {
   background-color: #45a049;
 }
+
+.progress-bar {
+  margin: 2em auto;
+  width: 60%;
+  height: 20px;
+  background-color: #ccc;
+}
+
+.progress {
+  height: 100%;
+  background-color: green;
+  width: 0;
+  transition: width 0.4s;
+}
+
+.checkmark {
+  font-size: 2em;
+  color: green;
+  margin-top: 20px;
+}
