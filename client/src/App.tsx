@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
-import nycDotLogo from './assets/NYC DOT.png';
+import nycDotLogo from './assets/nyc_dot_logo.png';
 
 const App: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);

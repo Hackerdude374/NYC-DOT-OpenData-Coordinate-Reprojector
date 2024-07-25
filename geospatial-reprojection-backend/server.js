@@ -1,24 +1,52 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const cors = require('cors');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-app.use(cors());  // Use cors middleware
+app.use(cors({
+    origin: 'http://localhost:5173' // Allow requests from the frontend
+}));
 
 app.use(express.static(path.join(__dirname, 'client', 'dist')));
 
 app.post('/upload', upload.single('file'), (req, res) => {
+    const originalName = req.file.originalname;
     const filePath = path.join(__dirname, req.file.path);
-    exec(`python process_file.py "${filePath}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`exec error: ${error}`);
-            console.error(`stderr: ${stderr}`);
-            return res.status(500).send(`Error processing file: ${stderr}`);
+
+    // Determine the file extension and rename the file accordingly
+    const extension = path.extname(originalName);
+    const newFilePath = `${filePath}${extension}`;
+
+    fs.rename(filePath, newFilePath, (err) => {
+        if (err) {
+            console.error(`File rename error: ${err}`);
+            return res.status(500).send('Error processing file');
         }
-        res.download(stdout.trim(), 'reprojected_data.xlsx');
+
+        const pythonProcess = spawn('python', ['process_file.py', newFilePath]);
+
+        pythonProcess.stdout.on('data', (data) => {
+            console.log(`stdout: ${data}`);
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            console.error(`stderr: ${data}`);
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code !== 0) {
+                res.status(500).send('Error processing file');
+            } else {
+                // Determine the output file extension based on the input file extension
+                const outputExtension = path.extname(newFilePath);
+                const outputFile = `${newFilePath}${outputExtension}`;
+                res.download(outputFile, `reprojected_data${outputExtension}`);
+            }
+        });
     });
 });
 
