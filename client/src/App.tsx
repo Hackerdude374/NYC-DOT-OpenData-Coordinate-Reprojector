@@ -26,7 +26,8 @@ const App: React.FC = () => {
     setUploadSuccess(false);
 
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', 'http://localhost:3000/upload', true);
+    //xhr.open('POST', 'http://localhost:3000/upload', true);
+    xhr.open('POST', 'https://nyc-dot-opendata-coordinate-reprojector.onrender.com/upload', true);
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
