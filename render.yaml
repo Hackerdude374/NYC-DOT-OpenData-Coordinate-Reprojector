@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: my-node-service
+    env: node
+    buildCommand: "npm install && ./setup.sh && pip install -r requirements.txt"
+    startCommand: "npm start"
