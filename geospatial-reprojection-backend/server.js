@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Allow multiple origins
-const allowedOrigins = ['http://localhost:5173', 'https://nyc-dot-open-data-coordinate-reprojector.vercel.app'];
+const allowedOrigins = ['http://localhost:5173','https://nyc-dot-open-data-coordinate-reprojector.onrender.com', 'https://nyc-dot-open-data-coordinate-reprojector.vercel.app'];
 
 app.use(cors({
     origin: function (origin, callback) {
