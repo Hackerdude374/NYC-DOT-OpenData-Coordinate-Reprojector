@@ -1,5 +1,3 @@
-/* App.css */
-
 .app {
   font-family: Arial, sans-serif;
   text-align: center;
@@ -74,17 +72,41 @@
 }
 
 .progress-bar {
-  margin: 2em auto;
+  margin: 20px auto;
   width: 60%;
   height: 20px;
   background-color: #ccc;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
 }
 
 .progress {
   height: 100%;
   background-color: green;
   width: 0;
-  transition: width 0.4s;
+  transition: width 0.5s ease-in-out;
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 1rem 1rem;
+  animation: progress-stripes 1s linear infinite;
+}
+
+@keyframes progress-stripes {
+  from {
+    background-position: 1rem 0;
+  }
+  to {
+    background-position: 0 0;
+  }
 }
 
 .checkmark {
