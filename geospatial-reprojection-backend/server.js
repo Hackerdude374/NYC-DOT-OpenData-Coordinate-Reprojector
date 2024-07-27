@@ -25,7 +25,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 const allowedOrigins = [
     'http://localhost:5173',
     'https://nyc-dot-open-data-coordinate-reprojector.onrender.com', 
-    'https://nyc-dot-open-data-coordinate-reprojector.vercel.app'
+    'https://nyc-dot-open-data-coordinate-reprojector.vercel.app',
+  //  'https://nyc-dot-open-data-coordinate-reprojector.vercel.app/'
 ];
 
 app.use(cors({
@@ -39,6 +40,7 @@ app.use(cors({
         return callback(null, true);
     }
 }));
+//heyyy
 
 app.use(express.static(path.join(__dirname, 'client', 'dist')));
 
