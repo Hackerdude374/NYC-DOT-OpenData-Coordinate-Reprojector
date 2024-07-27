@@ -248,8 +248,8 @@ const App: React.FC = () => {
     setUploadError(false);
 
     const xhr = new XMLHttpRequest();
-   // xhr.open('POST', 'https://nyc-dot-opendata-coordinate-reprojector.onrender.com/upload', true);
-xhr.open('POST', 'http://localhost:3000/upload', true);
+    xhr.open('POST', 'https://nyc-dot-opendata-coordinate-reprojector.onrender.com/upload', true);
+//xhr.open('POST', 'http://localhost:3000/upload', true);
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const percentComplete = (event.loaded / event.total) * 100;
