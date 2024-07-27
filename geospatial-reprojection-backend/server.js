@@ -1,127 +1,25 @@
-// const express = require('express');
-// const multer = require('multer');
-// const path = require('path');
-// const fs = require('fs');
-// const cors = require('cors');
-// const { spawn } = require('child_process');
-// const os = require('os');
-// const app = express();
-
-// // Configure multer to save files with original names
-// const storage = multer.diskStorage({
-//     destination: (req, file, cb) => {
-//         cb(null, 'uploads/');
-//     },
-//     filename: (req, file, cb) => {
-//         cb(null, file.originalname);
-//     }
-// });
-// const upload = multer({ storage: storage });
-
-// // Allow multiple origins
-// const allowedOrigins = ['http://localhost:5173','https://nyc-dot-open-data-coordinate-reprojector.onrender.com', 'https://nyc-dot-open-data-coordinate-reprojector.vercel.app'];
-
-// app.use(cors({
-//     origin: function (origin, callback) {
-//         // Allow requests with no origin like mobile apps or curl requests
-//         if (!origin) return callback(null, true);
-//         if (allowedOrigins.indexOf(origin) === -1) {
-//             const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-//             return callback(new Error(msg), false);
-//         }
-//         return callback(null, true);
-//     }
-// }));
-
-// app.use(express.static(path.join(__dirname, 'client', 'dist')));
-
-// app.post('/upload', upload.single('file'), (req, res) => {
-//     const originalName = req.file.originalname;
-//     const filePath = path.join(__dirname, req.file.path);
-
-//     const extension = path.extname(originalName);
-//     const baseName = path.basename(originalName, extension);
-
-//     const pythonProcess = spawn('python', ['process_file.py', filePath]);
-
-//     pythonProcess.stdout.on('data', (data) => {
-//         console.log(`stdout: ${data}`);
-//     });
-
-//     pythonProcess.stderr.on('data', (data) => {
-//         console.error(`stderr: ${data}`);
-//     });
-
-//     pythonProcess.on('close', (code) => {
-//         if (code !== 0) {
-//             res.status(500).send('Error processing file');
-//         } else {
-//             const outputFileName = `${baseName}_reprojected${extension}`;
-//             const tempOutputFile = filePath; // Using the same file path as output
-//             const downloadsPath = path.join(os.homedir(), 'Downloads', outputFileName);
-
-//             fs.copyFile(tempOutputFile, downloadsPath, (err) => {
-//                 if (err) {
-//                     console.error(`File copy error: ${err}`);
-//                     return res.status(500).send('Error processing file');
-//                 }
-
-//                 res.download(downloadsPath, outputFileName, (err) => {
-//                     if (err) {
-//                         console.error(`File download error: ${err}`);
-//                         res.status(500).send('Error downloading file');
-//                     } else {
-//                         // Clean up temporary files
-//                         fs.unlink(tempOutputFile, (err) => {
-//                             if (err) {
-//                                 console.error(`File delete error: ${err}`);
-//                             }
-//                         });
-
-//                         // Clear uploads folder
-//                         fs.readdir('uploads', (err, files) => {
-//                             if (err) console.error(`Error reading uploads folder: ${err}`);
-//                             files.forEach(file => {
-//                                 fs.unlink(path.join('uploads', file), err => {
-//                                     if (err) console.error(`Error deleting file: ${err}`);
-//                                 });
-//                             });
-//                         });
-//                     }
-//                 });
-//             });
-//         }
-//     });
-// });
-
-// app.listen(3000, () => {
-//     console.log('Server is running on port 3000');
-// });
+require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const cors = require('cors');
 const { spawn } = require('child_process');
-const os = require('os');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const { Readable } = require('stream');
+
 const app = express();
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)){
-    fs.mkdirSync(uploadsDir);
-}
-
-// Configure multer to save files with original names
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(null, file.originalname);
-    }
+// Configure AWS S3
+const s3Client = new S3Client({
+  region: process.env.AWS_S3_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
 });
-const upload = multer({ storage: storage });
+
+// Configure multer to use memory storage
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Allow multiple origins
 const allowedOrigins = [
@@ -132,7 +30,6 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin like mobile apps or curl requests
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) === -1) {
             const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
@@ -144,69 +41,78 @@ app.use(cors({
 
 app.use(express.static(path.join(__dirname, 'client', 'dist')));
 
-app.post('/upload', upload.single('file'), (req, res) => {
+app.post('/upload', upload.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
     }
 
     const originalName = req.file.originalname;
-    const filePath = path.join(__dirname, req.file.path);
+    const fileBuffer = req.file.buffer;
 
-    console.log(`File uploaded: ${filePath}`);
+    try {
+        // Upload file to S3
+        const uploadResult = await s3Client.send(new PutObjectCommand({
+            Bucket: process.env.AWS_S3_BUCKET,
+            Key: `uploads/${originalName}`,
+            Body: fileBuffer
+        }));
 
-    const extension = path.extname(originalName);
-    const baseName = path.basename(originalName, extension);
+        console.log(`File uploaded to S3: ${uploadResult.Location}`);
 
-    const pythonProcess = spawn('python', ['process_file.py', filePath]);
+        // Process the file using Python script
+        const pythonProcess = spawn('python', ['process_file.py', `s3://${process.env.AWS_S3_BUCKET}/uploads/${originalName}`]);
 
-    pythonProcess.stdout.on('data', (data) => {
-        console.log(`stdout: ${data}`);
-    });
+        pythonProcess.stdout.on('data', (data) => {
+            console.log(`stdout: ${data}`);
+        });
 
-    pythonProcess.stderr.on('data', (data) => {
-        console.error(`stderr: ${data}`);
-    });
+        pythonProcess.stderr.on('data', (data) => {
+            console.error(`stderr: ${data}`);
+        });
 
-    pythonProcess.on('close', (code) => {
-        if (code !== 0) {
-            res.status(500).send('Error processing file');
-        } else {
-            const outputFileName = `${baseName}_reprojected${extension}`;
-            const tempOutputFile = filePath; // Using the same file path as output
-            const downloadsPath = path.join(os.homedir(), 'Downloads', outputFileName);
+        pythonProcess.on('close', async (code) => {
+            if (code !== 0) {
+                return res.status(500).send('Error processing file');
+            }
 
-            fs.copyFile(tempOutputFile, downloadsPath, (err) => {
-                if (err) {
-                    console.error(`File copy error: ${err}`);
-                    return res.status(500).send('Error processing file');
-                }
+            const processedFileName = `${originalName.split('.')[0]}_reprojected${path.extname(originalName)}`;
+            const processedFileKey = `processed/${processedFileName}`;
 
-                res.download(downloadsPath, outputFileName, (err) => {
-                    if (err) {
-                        console.error(`File download error: ${err}`);
-                        res.status(500).send('Error downloading file');
-                    } else {
-                        // Clean up temporary files
-                        fs.unlink(tempOutputFile, (err) => {
-                            if (err) {
-                                console.error(`File delete error: ${err}`);
-                            }
-                        });
+            try {
+                // Get the processed file from S3
+                const processedFile = await s3Client.send(new GetObjectCommand({
+                    Bucket: process.env.AWS_S3_BUCKET,
+                    Key: processedFileKey
+                }));
 
-                        // Clear uploads folder
-                        fs.readdir('uploads', (err, files) => {
-                            if (err) console.error(`Error reading uploads folder: ${err}`);
-                            files.forEach(file => {
-                                fs.unlink(path.join('uploads', file), err => {
-                                    if (err) console.error(`Error deleting file: ${err}`);
-                                });
-                            });
-                        });
+                // Set headers for file download
+                res.setHeader('Content-Type', processedFile.ContentType);
+                res.setHeader('Content-Disposition', `attachment; filename=${processedFileName}`);
+
+                // Stream the file to the response
+                const stream = Readable.from(processedFile.Body);
+                stream.pipe(res);
+
+                // Clean up the original file from S3 after streaming is complete
+                stream.on('end', async () => {
+                    try {
+                        await s3Client.send(new DeleteObjectCommand({
+                            Bucket: process.env.AWS_S3_BUCKET,
+                            Key: `uploads/${originalName}`
+                        }));
+                    } catch (error) {
+                        console.error('Error deleting original file:', error);
                     }
                 });
-            });
-        }
-    });
+            } catch (error) {
+                console.error('Error retrieving processed file:', error);
+                res.status(500).send('Error retrieving processed file');
+            }
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Error processing file');
+    }
 });
 
 app.listen(3000, () => {
