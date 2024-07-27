@@ -259,7 +259,7 @@ const App: React.FC = () => {
 
     xhr.onload = () => {
       if (xhr.status === 200) {
-        const contentType = xhr.getResponseHeader('Content-Type');
+        const contentType = xhr.getResponseHeader('Content-Type') || 'application/octet-stream';
         const blob = new Blob([xhr.response], { type: contentType });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
