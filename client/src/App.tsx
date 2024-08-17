@@ -290,7 +290,7 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <nav className="navbar">
-        <img src={nycDotLogo} alt="NYC DOT Logo" className="logo" />
+        {/* <img src={nycDotLogo} alt="NYC DOT Logo" className="logo" /> */}
         <h1>Geospatial Reprojection</h1>
       </nav>
       <main className="main">
